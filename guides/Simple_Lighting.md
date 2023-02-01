@@ -196,3 +196,167 @@ There's lots of playing around you can do - experiment with multiple lights, new
 This should work on your Quest as well if you follow the instructions on the LÖVR website for [deploying to Android](https://lovr.org/docs/Getting_Started_(Quest)). A moving, unlit sphere was added in the example to represent the light source to better visualize it.
 
 Have fun with LÖVR!
+
+Adding three Lights
+
+
+function lovr.load()
+  -- Initialize our model
+  model = lovr.graphics.newModel('zxx-1.glb')
+
+  -- set up shader
+  shaderLight = lovr.graphics.newShader([[
+    vec4 lovrmain() {
+      return Projection * View * Transform * VertexPosition;
+    }
+  ]], [[
+    Constants {
+
+      vec4 ambience1;
+      
+      vec4 lightColor1;
+      vec3 lightPos1;
+      float specularStrength1;
+      
+      vec4 lightColor2;
+      vec3 lightPos2;
+      float specularStrength2;
+      
+      
+      vec4 lightColor3;
+      vec3 lightPos3;
+      float specularStrength3;
+      
+      int metallic1;
+      int B1;
+      int B2;
+      int B3;
+    };
+
+    vec4 lovrmain() {
+      // Diffuse
+      vec3 norm1 = normalize(Normal);
+      vec3 lightDir1 = normalize(lightPos1 - PositionWorld);
+      float diff1 = max(dot(norm1, lightDir1), 0);
+      vec4 diffuse1 = (diff1 * B1) * lightColor1; // Brightness is controlled by changing the value of B1
+
+      // Diffuse for light two
+      vec3 norm2 = normalize(Normal);
+      vec3 lightDir2 = normalize(lightPos2 - PositionWorld);
+      float diff2 = max(dot(norm2, lightDir2), 0);
+      vec4 diffuse2 = (diff2 * B2) * lightColor2; // Brightness is controlled by changing the value of B2
+      
+      // Diffuse for light Three
+      vec3 norm3 = normalize(Normal);
+      vec3 lightDir3 = normalize(lightPos3 - PositionWorld);
+      float diff3 = max(dot(norm3, lightDir3), 0);
+      vec4 diffuse3 = (diff3 * B3) * lightColor3; // Brightness is controlled by changing the value of B3
+
+      // Specular
+      vec3 viewDir1 = normalize(CameraPositionWorld - PositionWorld);
+      vec3 reflectDir1 = reflect(-lightDir1, norm1);
+      float spec1 = pow(max(dot(viewDir1, reflectDir1), 0.0), metallic1);
+      vec4 specular1 = specularStrength1 * spec1 * lightColor1;
+      vec3 viewDir2 = normalize(CameraPositionWorld - PositionWorld);
+      vec3 reflectDir2 = reflect(-lightDir2, norm2);
+      float spec2 = pow(max(dot(viewDir2, reflectDir2), 0.0), metallic1);
+      vec4 specular2 = specularStrength2 * spec2 * lightColor2;
+      vec3 viewDir3 = normalize(CameraPositionWorld - PositionWorld);
+      vec3 reflectDir3 = reflect(-lightDir3, norm3);
+      float spec3 = pow(max(dot(viewDir3, reflectDir3), 0.0), metallic1);
+      vec4 specular3 = specularStrength3 * spec3 * lightColor3;
+
+      vec4 baseColor1 = Color * getPixel(ColorTexture, UV);
+      vec4 baseColor2 = Color * getPixel(ColorTexture, UV);
+      vec4 baseColor3 = Color * getPixel(ColorTexture, UV);
+
+      return (baseColor1 * baseColor2 * baseColor3) * ((ambience1) + (diffuse1 + diffuse2 + diffuse3) + (specular1 + specular2 + specular3));
+    }
+  ]])
+
+  -- variables for Light position and time
+  lightPosLightOne = 0
+  lightPosLighTwo = 0
+  lightPosLighThree = 0
+  time = 0
+
+end
+
+function lovr.update()
+  -- Calculation time and position of light moved to update for performance
+  time = lovr.timer.getTime()
+  lightPosLightOne = vec3(math.sin(time) * 3.5, -1, math.cos(time) * 12)
+  lightPosLightTwo = vec3(math.sin(-time) * 3.5, -1, math.cos(time) * 12)
+  lightPosLighThree = vec3(0, -1, math.cos(time) * 12)
+end
+
+-- declaring Function for setting the Shader
+function StartAndSetShader(pass, ShaderName, amb, ambstrengt, 
+                          lightcolor1, lightcolor2, lightcolor3, 
+                          lightval1, lightval2, lightval3,
+                          lightpos1, lightpos2, lightpos3,
+                          lightposvec1, lightposvec2, lightposvec3,
+                          specst1, specst2, specst3,
+                          specval1, specval2, specval3,
+                          Mattalicst, mattalicVal, B1, B2, B3, B1val, B2val, B3val)
+  
+  pass:setShader(ShaderName)
+  
+  pass:send(amb, ambstrengt)
+  
+  pass:send(lightcolor1, lightval1)
+  pass:send(lightpos1, lightposvec1)
+  pass:send(specst1, specval1)
+  pass:send(B1, B1val)
+  
+  pass:send(lightcolor2, lightval2)
+  pass:send(lightpos2, lightposvec2)
+  pass:send(specst2, specval2)
+  pass:send(B2, B2val)
+
+  pass:send(lightcolor3, lightval3)
+  pass:send(lightpos3, lightposvec3)
+  pass:send(specst3, specval3)
+  pass:send(B3, B3val)
+
+  pass:send(Mattalicst, mattalicVal)
+  pass:setShader(ShaderName)
+  
+end
+
+function lovr.draw(pass)
+
+  -- function for shader
+  StartAndSetShader(pass, shaderLight, 'ambience1', {2, 2, 2, 1.0}, 
+  'lightColor1', 'lightColor2', 'lightColor2', 
+  {1, 0, 0, 1}, {0, 0, 1.0, 1}, {0, 1.0, 0, 1},
+  'lightPos1', 'lightPos2', 'lightPos3',
+  lightPosLightOne, lightPosLightTwo, lightPosLighThree,
+  'specularStrength1', 'specularStrength2', 'specularStrength3',
+  1, 1, 1, 'metallic1', 256, "B1", "B2", "B3", 200, 200, 200)
+
+  pass:draw(model, 0, -2, -3, 1, 0)
+
+  pass:setShader() -- Reset to default/unlit
+  
+  pass:text('hello world', 0, 1.7, -3, .5)
+
+  pass:setColor(1, 0, 0) -- setting Red Color to the sphere
+  pass:sphere(lightPosLightOne, -0.5, -1, 0.01) -- Represents light One
+
+  pass:setColor(0, 0, 1) -- setting Blue Color to the sphere
+  pass:sphere(lightPosLightTwo, -0.5, -1, 0.01) -- Represents light Two
+
+  pass:setColor(0, 1, 0) -- setting Green Color to the sphere
+  pass:sphere(lightPosLighThree, -0.5, -1, 0.01) -- Represents light Three
+  
+  pass:setColor(1, 1, 1) -- resetting Light to white
+
+end
+
+-- Callback for Keyboard pressed
+function lovr.keypressed(key, scancode, repeating)
+  if key == 'escape' then
+    lovr.event.quit() -- quits the game
+  end
+end
